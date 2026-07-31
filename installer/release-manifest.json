@@ -47,6 +47,6 @@
     "installer/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "installer/package_release.py": "f47cb763cbfab27fb26f0d9c7f718b2c4c2f81dfd2027fe0f3c4d44c38ff4779",
     "installer/payload-manifest.json": "9b6e433dd1be648b4929fb222ea6a1f5b9e26bef52c0c7b1df799ae46d4f7463",
-    "installer/photogimp_install.py": "5eb260cfa113d6ab27b042559f94ff17074f7ce7faaa53a7aabdb284594fbad8"
+    "installer/photogimp_install.py": "2a3f66e090542f542d48899b57b3456dc1c1ac8616e1ac4ff83c15837a24eafe"
   }
 }

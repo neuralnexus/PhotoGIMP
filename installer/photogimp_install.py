@@ -2011,16 +2011,33 @@ def _fsync_directory(path: Path) -> None:
             raise OSError(f"Cannot durably flush directory {path}: {exc}") from exc
 
 
+def _fsync_file(path: Path) -> None:
+    flags = os.O_RDWR if is_windows() else os.O_RDONLY
+    restore_mode: Optional[int] = None
+    try:
+        try:
+            fd = os.open(path, flags)
+        except PermissionError:
+            if not is_windows():
+                raise
+            restore_mode = stat.S_IMODE(path.stat().st_mode)
+            path.chmod(restore_mode | stat.S_IWRITE)
+            fd = os.open(path, flags)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    finally:
+        if restore_mode is not None:
+            path.chmod(restore_mode)
+
+
 def _fsync_tree(root: Path) -> None:
     for path in sorted(root.rglob("*"), reverse=True):
         if _is_link_or_reparse(path):
             raise OSError(f"Cannot sync symlinked backup entry: {path}")
         if path.is_file():
-            fd = os.open(path, os.O_RDONLY)
-            try:
-                os.fsync(fd)
-            finally:
-                os.close(fd)
+            _fsync_file(path)
         elif path.is_dir():
             _fsync_directory(path)
     _fsync_directory(root)
@@ -2684,11 +2701,7 @@ def copy_file(src: Path, dest: Path) -> None:
     tmp_path = Path(tmp_name)
     try:
         shutil.copy2(src, tmp_path)
-        fd = os.open(tmp_path, os.O_RDONLY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
+        _fsync_file(tmp_path)
         tmp_path.replace(dest)
         _fsync_directory(dest.parent)
     except BaseException:

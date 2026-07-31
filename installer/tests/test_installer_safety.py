@@ -710,6 +710,7 @@ class InstallerSafetyTests(unittest.TestCase):
         outside = self.tmp / "outside-backups"
         outside.mkdir()
         outside.chmod(0o755)
+        original_mode = stat.S_IMODE(outside.stat().st_mode)
         link = data / "backups"
         try:
             link.symlink_to(outside, target_is_directory=True)
@@ -720,7 +721,7 @@ class InstallerSafetyTests(unittest.TestCase):
         cfg = self.config_root / "3.0"
         cfg.mkdir()
         self.assertIsNone(pg.create_backup(cfg, reason="manual", gimp=self._native()))
-        self.assertEqual(stat.S_IMODE(outside.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(outside.stat().st_mode), original_mode)
 
     def test_tampered_state_backup_id_is_invalid_registry(self) -> None:
         cfg = self.config_root / "3.0"
@@ -1321,6 +1322,18 @@ class InstallerSafetyTests(unittest.TestCase):
         ), mock.patch.object(ctypes, "windll", fake_windll, create=True):
             pg._fsync_directory(self.tmp)
         self.assertEqual(create_file.call_args.args[1], 0x40000000)
+
+    def test_windows_file_flush_opens_a_writable_descriptor(self) -> None:
+        path = self.tmp / "flush.txt"
+        path.write_text("flush", encoding="utf-8")
+        with mock.patch.object(pg, "is_windows", return_value=True), mock.patch.object(
+            pg.os, "open", return_value=42
+        ) as open_file, mock.patch.object(pg.os, "fsync") as fsync_file, mock.patch.object(
+            pg.os, "close"
+        ):
+            pg._fsync_file(path)
+        self.assertEqual(open_file.call_args.args[1], os.O_RDWR)
+        fsync_file.assert_called_once_with(42)
 
 
 if __name__ == "__main__":
